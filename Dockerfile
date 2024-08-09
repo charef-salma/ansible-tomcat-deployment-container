@@ -1,4 +1,4 @@
-# Utiliser Debian Jessie comme image de base
+# Utiliser Debian  comme image de base
 FROM debian:10
 
 #Mettre à jour les paquets et installer les dépendances nécessaires
