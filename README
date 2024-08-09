@@ -1,0 +1,4 @@
+## Commande pour lancer le projet
+bash tomcat_deploy.sh  DEV 
+## Commande pour lancer le projet sur L'en PROD
+bash tomcat_deploy.sh  PROD

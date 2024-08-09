@@ -1,0 +1,91 @@
+---
+- name: Deploy Apache Tomcat on Ubuntu for your java web applications
+  hosts: localhost 
+  gather_facts: yes
+  become: true
+  vars:
+     tomcat_archive_url: https://downloads.apache.org/tomcat/tomcat-9/v9.0.93/bin/apache-tomcat-9.0.93.tar.gz
+  tasks:
+    - name: Deleting content & directory
+      file:
+        state: absent
+        path: /opt/tomcat
+    - name: Creating /opt/tomcat directory
+      file:
+        path: /opt/tomcat
+        state: directory
+        mode: 0755
+    - name: Downloading & unarchiving
+      unarchive:
+        src: "{{ tomcat_archive_url }}"
+        dest: /opt/tomcat
+        remote_src: yes
+        extra_opts: [--strip-components=1]
+    - name: Adding tomcat group
+      group:
+        name: tomcat
+    - name: Adding tomcat user
+      user:
+        name: tomcat
+        group: tomcat
+        home: /user/share/tomcat
+        createhome: no
+    - name: Changing ownership
+      file:
+        path: /opt/tomcat
+        owner: tomcat
+        group: tomcat
+        mode: "u+rwx,g+rx,o=rx"
+        recurse: yes
+        state: directory
+
+    - name: Copying Tomcat service file from local to remote
+      copy:
+         src: tomcat.service
+         dest: /etc/systemd/system/
+         mode: 0755
+
+    - name: Starting and enabling Tomcat service
+      systemd:
+        name: tomcat
+        state: restarted
+        enabled: true
+        daemon_reload: true
+
+    - name: Ensure the webapps directory exists
+      file:
+         path: /opt/tomcat/webapps
+         state: directory
+         owner: tomcat
+         group: tomcat
+         mode: '0755'
+
+    - name: Deploy WAR file
+      copy:
+        src: /data/sample.war
+        dest: /opt/tomcat/webapps/sample.war
+
+    
+
+    - name: Configure JVM heap size
+      lineinfile:
+        path: /opt/tomcat/bin/catalina.sh
+        regexp: '^JAVA_OPTS='
+        line: 'JAVA_OPTS="-Djava.awt.headless=true -Xmx{{ heap_size }}m"'
+      vars:
+          heap_size: "{{ '256' if env == 'DEV' else '512' }}"    
+
+    - name: Change Tomcat port from 8080 to 8180
+      become: yes
+      replace:
+        path: /opt/tomcat/conf/server.xml
+        regexp: 'port="8080"'
+        replace: 'port="8180"'
+      notify:
+        - Restart Tomcat
+
+  handlers:
+    - name: Restart Tomcat
+      systemd:
+        name: tomcat
+        state: restarted
